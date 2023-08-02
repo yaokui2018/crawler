@@ -1,0 +1,4 @@
+lxml==4.9.3
+playwright==1.36.0
+requests==2.31.0
+selenium==4.11.2
