@@ -2,25 +2,20 @@
 # Author: 薄荷你玩
 # Date: 2023/08/01
 
-import requests
 from selenium import webdriver
 from lxml import etree
-import time
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-import re
 
 
 # 将爬虫封装成一个类
-class LagouSpider(object):
-
+class BaiduSpider(object):
     def __init__(self):
         # 启动浏览器驱动
         self.driver = webdriver.Chrome()
         # 百度链接
         self.url = 'https://www.baidu.com/s?wd=薄荷分享网'
-        self.positions = []
 
     def run(self):
         # 向服务器发出请求
@@ -74,7 +69,7 @@ class LagouSpider(object):
         self.driver.close()
         self.driver.switch_to.window(self.driver.window_handles[0])
 
-    # 关闭该链接的页面
+    # 解析页面内容
     def parse_detail_page(self, source):
         html = etree.HTML(source)
         title = html.xpath("(//head/title)")[0].text
@@ -83,7 +78,6 @@ class LagouSpider(object):
         print()
 
 
-# 执行结果
 if __name__ == '__main__':
-    spider = LagouSpider()
+    spider = BaiduSpider()
     spider.run()
