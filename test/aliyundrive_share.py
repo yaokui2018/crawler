@@ -5,17 +5,21 @@ import time
 import pandas as pd
 from playwright.sync_api import Playwright, sync_playwright
 
+DATA_SAVE_PATH = "aliyundrive/data.csv"
 
-def write_data(filename, share_link, save_path="wps.csv"):
+
+def write_data(filename, share_link, save_path=DATA_SAVE_PATH):
     id = filename.split("-")[0]
     with open(save_path, 'a+', encoding="utf8") as f:
         f.write(f"{id},{filename},{share_link}\n")
 
 
-def load_exists_data(file_path="aliyundrive/data.csv"):
+def load_exists_data(file_path=DATA_SAVE_PATH):
     data = pd.read_csv(file_path)
-    filenames = list(data.iloc[:, 1].values)
-    last_id = data.iloc[-1, 0]
+    filenames, last_id = [], 0
+    if not data.empty:
+        filenames = list(data.iloc[:, 1].values)
+        last_id = data.iloc[-1, 0]
     return filenames, last_id
 
 
@@ -37,12 +41,17 @@ class AliyundriveSpider(object):
         page.goto(self.url)
         # 设置全局的超时时间为5秒
         page.set_default_timeout(5000)
-        # 保存状态文件
-        context.storage_state(path="aliyundrive/auth.json")
         # 等待新页面加载完成
         page.wait_for_load_state('domcontentloaded')
+        curr_url = page.url
+        if "https://www.aliyundrive.com/sign/in" in curr_url:
+            input("请先完成登录后按回车继续：")
+        # 保存状态文件
+        context.storage_state(path="aliyundrive/auth.json")
+        time.sleep(2)
         # 下滑页面 20010
         total_num = self.last_id + 200
+        print(f"起始滑动值：total_num = {total_num}")
         page.evaluate("""var scrollableDiv = document.getElementsByClassName("grid-scroll--O0kCz")[0];
             var listSum = document.getElementsByClassName("list-sum--0pQHO")[0];
             function run() {
@@ -57,7 +66,7 @@ class AliyundriveSpider(object):
         while page.locator(".list-sum--0pQHO").inner_text() != f'共 {total_num} 项':
             print(page.locator(".list-sum--0pQHO").inner_text())
             time.sleep(10)
-        page.locator(".mask--Ea-QF").last.click()
+        page.locator(".node-card--wp9KL").last.click()
         err_times = 0
         while True:
             filename = page.locator("span[class='text--KBVB3']").inner_text()
@@ -73,6 +82,15 @@ class AliyundriveSpider(object):
                         page.get_by_label("分享文件").get_by_role("img").nth(3).click()
                         page.get_by_text("永久有效").click()
                         page.get_by_role("button", name="创建分享").click()
+                        if err_times >= 3:
+                            # 判断今日是否分享达到上限
+                            try:
+                                element = page.wait_for_selector('.content-wrapper--A93tB')
+                                # 今日分享次数已达上限\n点击查看细则
+                                print(element.inner_text())
+                                break
+                            except Exception as e:
+                                pass
                         share_link = page.locator("div[class='url--9yHLX']").inner_text()
                         save_path = 'aliyundrive/data.csv'
                     print(filename, share_link)
