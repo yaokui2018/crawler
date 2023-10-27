@@ -44,26 +44,32 @@ class AliyundriveSpider(object):
         # 等待新页面加载完成
         page.wait_for_load_state('domcontentloaded')
         curr_url = page.url
-        if "https://www.aliyundrive.com/sign/in" in curr_url:
+        # 判断是否登录
+        try:
+            if "https://www.aliyundrive.com/sign/in" not in curr_url:
+                page.locator('#login').inner_text()
             input("请先完成登录后按回车继续：")
-        # 保存状态文件
-        context.storage_state(path="aliyundrive/auth.json")
-        time.sleep(2)
+            # 保存状态文件
+            context.storage_state(path="aliyundrive/auth.json")
+        except Exception as e:
+            print("未发现登录页")
         # 下滑页面 20010
         total_num = self.last_id + 200
         print(f"起始滑动值：total_num = {total_num}")
-        page.evaluate("""var scrollableDiv = document.getElementsByClassName("grid-scroll--O0kCz")[0];
+        page.evaluate("""
+            var scrollableDiv = document.getElementsByClassName("grid-scroll--O0kCz")[0];
             var listSum = document.getElementsByClassName("list-sum--0pQHO")[0];
             function run() {
-                scrollableDiv.scrollTop = scrollableDiv.scrollTop  + 100000;    
-                if(listSum.innerText != '共 {TOTAL_NUM} 项'){
+                scrollableDiv.scrollTop = scrollableDiv.scrollTop  + 100000; 
+                let sum = listSum.innerText.replace("共 ", "").replace(" 项", "");
+                if(sum < {TOTAL_NUM}){
                     console.log(listSum.innerText);
                     setTimeout(run , 500);                    
                 }                
             }
             run();    
         """.replace("{TOTAL_NUM}", str(total_num)))
-        while page.locator(".list-sum--0pQHO").inner_text() != f'共 {total_num} 项':
+        while int(page.locator(".list-sum--0pQHO").inner_text().replace("共 ", "").replace(" 项", "")) < total_num:
             print(page.locator(".list-sum--0pQHO").inner_text())
             time.sleep(10)
         page.locator(".node-card--wp9KL").last.click()
